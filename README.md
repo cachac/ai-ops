@@ -103,7 +103,7 @@ kubectl describe rs -n dev
 El chat falló al inicio porque no conoce la infraestructura y configuracion.
 
 
-# 4. Agentes
+# 4. Dev/Ops AI
 ## 4.1. OpenCode
 - [Instalar](https://opencode.ai/download)
 ```sh
@@ -145,7 +145,9 @@ Primero ubicar la carpeta
 ```
 Usa el skill para implementar el `deployment.yaml` del paso 3.
 ```sh
-/skills - grill me
+/skills
+
+grill-me @deployment.yaml
 ```
 
 ## 5.3. Caveman
@@ -154,18 +156,152 @@ Instala y usa el skill.
 Resumen de la implementacion del deployment y estado de los pods
 ```
 
+## 5.4. Kube Skill
+Crea un skill propio para controlar el cluster y sus recursos
+- Nuevo folder `.agents`/skills/kube
+- Nuevo archivo: `SKILL.md`
+```yaml
+---
+name: kube-powers
+description: Herramienta para la administracion de kubernetes
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash(kubectl:*), Bash(helm:*), Bash(curl:*), Bash(cat:*), Bash(ls:*), Bash(mkdir:*), Bash(kustomize:*)
+---
 
+# Rol y Comportamiento
+Eres un asistente experto en Kubernetes y SRE. Tu objetivo es ayudar a diagnosticar y solucionar problemas en el cluster.
+## Reglas de operación:
+1. **Inspección primero:** Antes de proponer cambios, consulta el estado actual con `kubectl get pods`, `kubectl describe`, o `kubectl logs`. También analiza si existe un `limitRange` o `ResourceQuota` que esté impidiendo la creación de los recursos.
+2. **Explica la causa raíz:** Explica de forma clara y sencilla qué error ocurrió (ej. falta de recursos, CrashLoopBackOff, ImagePullBackOff).
+3. **Seguridad:** NUNCA ejecutes `kubectl delete` sin pedir confirmación explícita al usuario.
+4. **Propón soluciones:** Muestra el manifiesto corregido antes de aplicarlo.
+```
+Alternativa mas segura para `allowed-tools`: sustituye `*` por comandos especificos.
+```yaml
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash(kubectl get:*), Bash(kubectl describe:*), Bash(kubectl logs:*), Bash(kubectl apply:*), Bash(kubectl diff:*), Bash(kubectl explain:*), Bash(helm list:*), Bash(helm status:*), Bash(curl:*), Bash(cat:*), Bash(ls:*)
+```
+Reinicia Opencode y prueba el skill con el siguiente prompt:
+```
+/skill
+kube-powers Resuelve el error de implementacion del deployment
+```
+### 5.4.1. Elimina y prueba
+Elimina el `deployment`
+```sh
+kubectl delete -f deployment.yaml
+```
+Y prueba de nuevo la creación del recurso ahora usando el `skill` tomando el requerimiento del punto 3.
+Conserva los errores de los recursos.
+```
+/skill
+kube-powers @deployment.yaml implementa
+```
 
+# 6. Agentes
+## 6.1. Agents.md
+Instrucciones y directivas globales que todo agente de IA debe seguir dentro de este repositorio sin necesidad de recordárselo en cada prompt.
 
+### 6.1.1. Ejemplo: `AGENTS.md` en la raíz del proyecto
+```markdown
+# AI Directives for aiOps Project
+## Convenciones de Kubernetes
+- Todos los recursos de laboratorio deben crearse dentro del namespace `dev`.
+- Nunca uses el namespace `default` ni `kube-system`.
+- Todo contenedor debe tener declarados `requests` y `limits` de CPU y memoria.
+## Comandos habituales
+- Validar estado general: `kubectl get pods -n dev`
+- Ver cuotas del namespace: `kubectl get quota,limitrange -n dev`
+## Reglas de Seguridad
+- Prohibido ejecutar `kubectl delete ns` o eliminar CRDs compartidos.
+```
+
+## 6.2. Built-in
+- `Build`
+- `Plan`
+- `@` para sub-agentes: `Explore`
+
+## 6.3. Contruye un agente
+- Nuevo folder `.opencode`/agents
+- archivo: `kube.md`
+
+```yaml
+---
+name: kube
+description: Agente SRE autónomo para despliegue y diagnóstico en Kubernetes
+mode: primary
+tools:
+  read: true
+  grep: true
+  glob: true
+  task: true
+  bash: true
+  write: true
+  edit: true
+permission:
+  edit: allow
+  bash:
+    "*": allow
+    "kubectl delete*": ask
+    "helm uninstall*": ask
+    "rm *": ask
+---
+
+# Rol: Kubernetes SRE Specialist
+
+Eres un Ingeniero DevOps - SRE de Storylabs.
+
+## Responsabilidad:
+- Si el usuario te pide diseñar o desplegar una nueva arquitectura/recurso ambiguo, usa `grill-me` para clarificar requerimientos (puertos, dominios, réplicas) antes de aplicar.
+- Utiliza `kube-powers` para la inspección, validación contra cuotas y aplicación en el clúster.
+- Mantén la comunicación clara, técnica y concisa (`caveman`).
+
+```
+## 6.4. Probar el agente
+Reinicia Opencode y busca el agente `TAB`
+
+### 6.4.1. Prueba de secuencia
+Pregunta:
+```
+Si le doy una instruccion cuales son sus pasos a seguir?
+```
+### 6.4.2. Prueba de implementacion
+Repetir el caso 3.
+```sh
+@deploymtment.yaml implementa
+```
+
+## 6.5. Analiza: Que es un skill y agente??
+
+# 7. Otros skills
+- [Codebase Memory](https://github.com/DeusData/codebase-memory-mcp)
+- [Archify](https://github.com/tt-a1i/archify)
+
+## 7.1. Probar Codebase Memory
+```
+/skill
+codebase memory mcp indexa
+cuales yaml quedaron indexados?
+cuales beneficios obtuvimos al tener yaml de kuberentes indexados?
+tenemos alguna ganancia en cuanto a uso de tokens?
+```
+## 7.2. Probar archify
+```sh
+/skill
+archify de los recursos de kubernetes instalados en el cluster
+```
+### Para ver el diagrama
+```sh
+python3 -m http.server 8080 -b 0.0.0.0 -d ~/ai-ops
+```
+
+# MCP
 
 -- ideas a desarrollar
-codebase memory mcp
-archify
+
 agente para kubernetes
 agente para terraform
 mcp
 
-## 5.4. avanzado con kubernetes guards:
+## 7.3. avanzado con kubernetes guards:
 - Kyverno / OPA Gatekeeper
 - polaris
 - kubeArmor
