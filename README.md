@@ -1,7 +1,7 @@
 # ai-ops <!-- omit in toc -->
 
 # 1. Intro
-1 - Qué tan dicil persiben de implementar AI?
+1 - Qué tan dicil perciben de implementar AI?
 conceptos:
 - LLM: Fabel, Astra, Grok, Qwen, Minimax, Gemini, K3, GLM, etc
 - prompts
@@ -65,26 +65,43 @@ helm uninstall traefik-crd -n kube-system
 ```
 
 ## 2.5. Quotas + Limitranges
+```sh
+cd ~
+git clone https://github.com/cachac/ai-ops.git
+cd ai-ops
+
+kubectl create ns dev
+kubectl apply -f assets/quota.yaml
+```
 
 # 3. Vibe Coding "Chat prompt"
 Prompt generico en cualquier chat
 ```
 crea un deployment con los siguientes requerimientos:
 nombre del deployment kubelabs
-namespace aiops
+namespace dev
 replicas 2
 imagen: cachac/kubelabs:3.0
 recursos:
-- 20m CPU
-- 128Mi Memoria
+- request:
+	- 200m CPU
+	- 512Mi Memoria
 Puerto: 8080
 ```
 ## 3.1. Ejecutar el deployment
 Crea el archivo `deployment.yaml` con el contenido generado.
 ```sh
 kubectl apply -f deployment.yaml
-kubectl get pods -n aiops
+kubectl get pods -n dev
+kubectl get rs -n dev
+kubectl describe rs -n dev
 ```
+
+- El `ReplicaSet` falla al crear los `pods` (`FailedCreate`) porque los recursos solicitados (`requests: 200m CPU / 512Mi`) exceden el límite máximo permitido por el `LimitRange` (`max: 100m CPU / 256Mi`) en el namespace `dev`.
+
+## 3.2. Pedir al chat que corrija el problema.
+El chat falló al inicio porque no conoce la infraestructura y configuracion.
+
 
 # 4. Agentes
 ## 4.1. OpenCode
@@ -101,21 +118,54 @@ opencode
 /models
 /variants
 /connect
+Permisos*
 ```
 
 # 5. Skills básicos
+- [skills.sh](https://www.skills.sh/)
+## 5.1. Grill Me
+```sh
+sudo apt install npm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+nvm list
+# debe tener instlado al menos la versión 22
+
+# en caso de tener una versión anterior, instalar y usar 22
+nvm install 22
+
+npx skills add https://github.com/mattpocock/skills --skill grill-me
+cat  ~/.agents/skills/grill-me/SKILL.md
+```
+Reiniciar la TUI para tomar el skill.
+
+## 5.2. Uso del skill
+Primero ubicar la carpeta
+```sh
+!pwd
+```
+Usa el skill para implementar el `deployment.yaml` del paso 3.
+```sh
+/skills - grill me
+```
+
+## 5.3. Caveman
+Instala y usa el skill.
+```
+Resumen de la implementacion del deployment y estado de los pods
+```
+
+
 
 
 
 -- ideas a desarrollar
-grill-me
-caveman
 codebase memory mcp
 archify
 agente para kubernetes
 agente para terraform
+mcp
 
-## 5.1. avanzado con kubernetes guards:
+## 5.4. avanzado con kubernetes guards:
 - Kyverno / OPA Gatekeeper
 - polaris
 - kubeArmor
