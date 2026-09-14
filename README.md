@@ -1,7 +1,7 @@
 # ai-ops <!-- omit in toc -->
 
 # 1. Intro
-1 - Qué tan dicil perciben de implementar AI?
+1 - Qué tan dificil perciben de implementar AI?
 conceptos:
 - LLM: Fabel, Astra, Grok, Qwen, Minimax, Gemini, K3, GLM, etc
 - prompts
@@ -94,7 +94,7 @@ Crea el archivo `deployment.yaml` con el contenido generado.
 kubectl apply -f deployment.yaml
 kubectl get pods -n dev
 kubectl get rs -n dev
-kubectl describe rs -n dev
+kubectl get events -n dev
 ```
 
 - El `ReplicaSet` falla al crear los `pods` (`FailedCreate`) porque los recursos solicitados (`requests: 200m CPU / 512Mi`) exceden el límite máximo permitido por el `LimitRange` (`max: 100m CPU / 256Mi`) en el namespace `dev`.
