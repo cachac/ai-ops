@@ -292,16 +292,97 @@ archify de los recursos de kubernetes instalados en el cluster
 ```sh
 python3 -m http.server 8080 -b 0.0.0.0 -d ~/ai-ops
 ```
+# 8. MCP
 
-# MCP
+## 8.1. Configuración inicial
+```sh
+# Comprobar la ruta del kubeconfig
+cat /home/azureuser/.kube/config
+# editar el archivo de config de Opencode
+vim ~/.config/opencode/opencode.json
+```
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "kubernetes": {
+      "type": "local",
+      "command": ["npx", "-y", "mcp-server-kubernetes"],
+      "environment": {
+        "KUBECONFIG": "/home/azureuser/.kube/config"
+      },
+      "enabled": true
+    }
+  }
+}
+```
 
--- ideas a desarrollar
+### 8.1.1. Validar servidor MCP
+```sh
+opencode mcp list
+opencode debug config
+```
 
-agente para kubernetes
-agente para terraform
-mcp
+### 8.1.2. Preguntas de exploración en OpenCode
+```
+¿Cuáles herramientas de Kubernetes tienes disponibles a través de MCP?
+```
 
-## 7.3. avanzado con kubernetes guards:
+## 8.2. Prueba de diagnóstico de incidentes
+Aplica un pod intencionalmente dañado:
+```sh
+kubectl apply -f assets/broken-app.yaml
+```
+Prompt para el agente:
+```
+Inspecciona los pods del namespace dev mediante tus herramientas de Kubernetes.
+
+Si encuentras algún pod fallando, analiza sus eventos/logs y explícame la causa raíz.
+```
+
+## 8.3. MCP Seguro (Enterprise Hardening)
+
+```
+¿Este MCP es seguro para ejecutarlo en un entorno empresarial de producción?
+```
+
+### 8.3.1. ¿Por qué la configuración anterior no es segura?
+- **Namespace no restringido:** El servidor por defecto puede exponer `k8s://default/*`, violando las directivas de `AGENTS.md` (donde solo se permite `dev`).
+- **Herramientas destructivas expuestas:** Habilita sin control `kubectl_generic`, `exec`, `delete`, `patch`, y `helm install`.
+- **Exposición de secretos:** Puede exponer valores en texto plano de Secrets y ConfigMaps.
+
+### 8.3.2. Configuración Segura para OpenCode
+Cambia a `kubernetes-mcp-server` (nativo API, con *secret masking* + *non-destructive* + RBAC) y limita los permisos en OpenCode:
+
+`~/.config/opencode/opencode.json`:
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "k8s-safe": {
+      "type": "local",
+      "command": ["npx", "-y", "kubernetes-mcp-server", "--toolsets=config,core", "--non-destructive"],
+      "environment": {
+        "KUBECONFIG": "/home/azureuser/.kube/config"
+      },
+      "enabled": true
+    }
+  },
+  "permission": {
+    "*": "ask",
+    "k8s-safe_*": "ask",
+    "k8s-safe_kubectl_delete*": "deny",
+    "k8s-safe_kubectl_apply*": "deny",
+    "k8s-safe_kubectl_exec*": "deny",
+    "k8s-safe_helm_*": "deny"
+  }
+}
+```
+
+### 8.3.3. Probar la configuración segura
+Reinicia OpenCode y valida que las operaciones destructivas o de mutación estén bloqueadas (`deny`), permitiendo solo lectura diagnóstica (`core` + `config` no destructivo).
+
+## 8.4. Avanzado con Kubernetes guards:
 - Kyverno / OPA Gatekeeper
 - polaris
 - kubeArmor
